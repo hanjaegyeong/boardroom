@@ -1,6 +1,7 @@
 # 🏢 Nano Office
 
-![alt text](image.png)
+<img width="1394" height="758" alt="image" src="https://github.com/user-attachments/assets/cfc52a5c-e814-4a4b-b670-f151a4262ce3" />
+
 > 게더타운 스타일의 2D 픽셀아트 가상 오피스에서 AI 팀원들이 자율 토론하고 문서를 만들어주는 웹 애플리케이션
 
 ![Phaser 3](https://img.shields.io/badge/Phaser_3-2D_Game_Engine-blue)
