@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BoardRoom - AI C-Suite Virtual Office</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="game-container"></div>
+    <div id="resize-handle"></div>
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <h1>BoardRoom</h1>
+        <div id="phase-indicator"></div>
+      </div>
+      <div id="task-input-area">
+        <textarea id="task-input" placeholder="업무를 입력하세요... (예: 새로운 B2B SaaS 제품 런칭 전략을 수립해주세요)" rows="3"></textarea>
+        <div id="button-row">
+          <button id="task-submit">회의 시작</button>
+        </div>
+        <div id="meeting-controls" class="hidden">
+          <button id="btn-continue" class="btn-control btn-continue">계속 토론</button>
+          <button id="btn-finalize" class="btn-control btn-finalize">산출물 생성</button>
+          <button id="btn-stop" class="btn-control btn-stop">중단</button>
+        </div>
+      </div>
+      <div id="topic-banner" class="hidden"></div>
+      <div id="usage-bar" class="hidden">
+        <span id="usage-tokens">0 tokens</span>
+        <span id="usage-calls">0 calls</span>
+        <span id="usage-cost">$0.000</span>
+      </div>
+      <div id="chat-log">
+        <div id="chat-messages"></div>
+      </div>
+      <div id="documents-panel">
+        <h3>산출물</h3>
+        <div id="documents-list"></div>
+      </div>
+    </div>
+  </div>
+  <div id="document-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title"></h2>
+        <button id="modal-close">&times;</button>
+        <button id="modal-download">다운로드</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
