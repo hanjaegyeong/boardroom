@@ -89,4 +89,24 @@ router.get('/transcript', (_req: Request, res: Response) => {
   res.json(store.transcript);
 });
 
+// Session history
+router.get('/sessions', (_req: Request, res: Response) => {
+  const sessions = store.getHistory().map(s => ({
+    id: s.id,
+    task: s.task,
+    timestamp: s.timestamp,
+    agentCount: new Set(s.transcript.map(t => t.agentId)).size,
+  }));
+  res.json(sessions);
+});
+
+router.get('/sessions/:id', (req: Request, res: Response) => {
+  const session = store.getSessionById(req.params.id as string);
+  if (!session) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+  res.json(session);
+});
+
 export default router;

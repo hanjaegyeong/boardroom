@@ -8,43 +8,43 @@ export interface Position {
 
 export interface AgentZone {
   desk: Position;
-  chair: Position;     // Where agent sits
+  chair: Position;
 }
 
-// Agent desk and seat positions
-export const AGENT_ZONES: Record<string, AgentZone> = {
-  ceo: {
-    desk: { x: 3, y: 3 },
-    chair: { x: 3, y: 4 },
+export interface DepartmentZone {
+  area: { x1: number; y1: number; x2: number; y2: number };
+  meetingSpot: Position;
+}
+
+// Department zones
+export const DEPARTMENT_ZONES: Record<string, DepartmentZone> = {
+  marketing: {
+    area: { x1: 1, y1: 1, x2: 13, y2: 10 },
+    meetingSpot: { x: 8, y: 7 },
   },
-  cto: {
-    desk: { x: 3, y: 9 },
-    chair: { x: 3, y: 10 },
-  },
-  cmo: {
-    desk: { x: 9, y: 9 },
-    chair: { x: 9, y: 10 },
-  },
-  cfo: {
-    desk: { x: 3, y: 15 },
-    chair: { x: 3, y: 16 },
-  },
-  cso: {
-    desk: { x: 9, y: 15 },
-    chair: { x: 9, y: 16 },
-  },
-  cdo: {
-    desk: { x: 9, y: 3 },
-    chair: { x: 9, y: 4 },
-  },
-  accountant: {
-    desk: { x: 28, y: 21 },
-    chair: { x: 28, y: 22 },
+  development: {
+    area: { x1: 1, y1: 13, x2: 13, y2: 22 },
+    meetingSpot: { x: 8, y: 19 },
   },
 };
 
-// Meeting center in the lounge area
-export const MEETING_CENTER: Position = { x: 20, y: 12 };
+// Agent desk and seat positions
+export const AGENT_ZONES: Record<string, AgentZone> = {
+  // Marketing department (top-left)
+  mkt_lead:    { desk: { x: 3, y: 3 },  chair: { x: 3, y: 4 } },
+  mkt_content: { desk: { x: 7, y: 3 },  chair: { x: 7, y: 4 } },
+  mkt_growth:  { desk: { x: 11, y: 3 }, chair: { x: 11, y: 4 } },
+  // Development department (bottom-left)
+  dev_lead:     { desk: { x: 2, y: 15 },  chair: { x: 2, y: 16 } },
+  dev_backend:  { desk: { x: 5, y: 15 },  chair: { x: 5, y: 16 } },
+  dev_frontend: { desk: { x: 8, y: 15 }, chair: { x: 8, y: 16 } },
+  dev_ai:       { desk: { x: 11, y: 15 }, chair: { x: 11, y: 16 } },
+  // Cost center (bottom-right)
+  accountant:   { desk: { x: 28, y: 21 }, chair: { x: 28, y: 22 } },
+};
+
+// Shared meeting center (right side lounge)
+export const MEETING_CENTER: Position = { x: 22, y: 12 };
 
 // Generate meeting positions arranged in a circle around center
 export function getMeetingPositions(count: number): Position[] {
@@ -62,37 +62,59 @@ export function getMeetingPositions(count: number): Position[] {
   return positions;
 }
 
-// Local waypoints per agent (near their office)
+// Department-level meeting positions (within department area)
+export function getDepartmentMeetingPositions(department: string, count: number): Position[] {
+  const zone = DEPARTMENT_ZONES[department];
+  if (!zone) return getMeetingPositions(count);
+  const center = zone.meetingSpot;
+  if (count === 1) return [center];
+  const positions: Position[] = [];
+  const radius = 1.5;
+  const angleStep = (2 * Math.PI) / count;
+  for (let i = 0; i < count; i++) {
+    const angle = angleStep * i - Math.PI / 2;
+    positions.push({
+      x: Math.round(center.x + radius * Math.cos(angle)),
+      y: Math.round(center.y + radius * Math.sin(angle)),
+    });
+  }
+  return positions;
+}
+
+// Local waypoints per agent (near their department area)
 export const AGENT_LOCAL_WAYPOINTS: Record<string, Position[]> = {
-  ceo: [{ x: 3, y: 4 }, { x: 5, y: 4 }, { x: 3, y: 5 }, { x: 7, y: 4 }],
-  cto: [{ x: 3, y: 10 }, { x: 5, y: 10 }, { x: 3, y: 11 }, { x: 7, y: 10 }],
-  cmo: [{ x: 9, y: 10 }, { x: 11, y: 10 }, { x: 9, y: 11 }, { x: 7, y: 10 }],
-  cfo: [{ x: 3, y: 16 }, { x: 5, y: 16 }, { x: 3, y: 17 }, { x: 7, y: 16 }],
-  cso: [{ x: 9, y: 16 }, { x: 11, y: 16 }, { x: 9, y: 17 }, { x: 7, y: 16 }],
-  cdo: [{ x: 9, y: 4 }, { x: 11, y: 4 }, { x: 9, y: 5 }, { x: 7, y: 4 }],
-  accountant: [{ x: 28, y: 22 }, { x: 27, y: 22 }, { x: 29, y: 22 }],
+  mkt_lead:    [{ x: 3, y: 4 }, { x: 5, y: 5 }, { x: 3, y: 6 }, { x: 7, y: 5 }],
+  mkt_content: [{ x: 7, y: 4 }, { x: 9, y: 5 }, { x: 7, y: 6 }, { x: 5, y: 5 }],
+  mkt_growth:  [{ x: 11, y: 4 }, { x: 13, y: 5 }, { x: 11, y: 6 }, { x: 9, y: 5 }],
+  dev_lead:     [{ x: 2, y: 16 }, { x: 4, y: 17 }, { x: 2, y: 18 }, { x: 5, y: 17 }],
+  dev_backend:  [{ x: 5, y: 16 }, { x: 7, y: 17 }, { x: 5, y: 18 }, { x: 3, y: 17 }],
+  dev_frontend: [{ x: 8, y: 16 }, { x: 10, y: 17 }, { x: 8, y: 18 }, { x: 6, y: 17 }],
+  dev_ai:       [{ x: 11, y: 16 }, { x: 13, y: 17 }, { x: 11, y: 18 }, { x: 9, y: 17 }],
+  accountant:   [{ x: 28, y: 22 }, { x: 27, y: 22 }, { x: 29, y: 22 }],
 };
 
-// Common area waypoints (lounge / open area on right side)
+// Common area waypoints (lounge / open area on right side + department common areas)
 export const COMMON_WAYPOINTS: Position[] = [
-  { x: 17, y: 3 }, { x: 20, y: 3 }, { x: 23, y: 3 },
-  { x: 17, y: 6 }, { x: 20, y: 6 }, { x: 23, y: 6 },
-  { x: 17, y: 9 }, { x: 20, y: 9 }, { x: 23, y: 9 },
-  { x: 17, y: 14 }, { x: 20, y: 14 }, { x: 23, y: 14 },
-  { x: 17, y: 18 }, { x: 20, y: 18 }, { x: 23, y: 18 },
+  // Marketing common area
+  { x: 5, y: 8 }, { x: 8, y: 8 }, { x: 11, y: 8 },
+  // Development common area
+  { x: 5, y: 20 }, { x: 8, y: 20 }, { x: 11, y: 20 },
+  // Shared meeting/lounge area (right side)
+  { x: 18, y: 4 }, { x: 22, y: 4 }, { x: 26, y: 4 },
+  { x: 18, y: 12 }, { x: 22, y: 12 }, { x: 26, y: 12 },
+  { x: 18, y: 20 }, { x: 22, y: 20 }, { x: 26, y: 20 },
 ];
 
-// Hallway X coordinate (all doorways are at x=6-7)
-export const HALLWAY_X = 7;
+// Corridor X coordinate (between departments and open area)
+export const HALLWAY_X = 14;
 
 // Hallway waypoints for pathfinding
 export const HALLWAY_POINTS: Position[] = [
-  { x: 7, y: 4 },
-  { x: 7, y: 10 },
-  { x: 7, y: 16 },
-  { x: 13, y: 4 },
-  { x: 13, y: 10 },
-  { x: 13, y: 16 },
+  { x: 14, y: 4 },
+  { x: 14, y: 8 },
+  { x: 14, y: 12 },
+  { x: 14, y: 16 },
+  { x: 14, y: 20 },
 ];
 
 // Map dimensions

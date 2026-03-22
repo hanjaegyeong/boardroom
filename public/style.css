@@ -528,17 +528,21 @@ body {
   background: #b0a898;
 }
 
-/* Agent colors - warm office palette */
-.agent-ceo { color: #c27a1a; }
-.agent-cto { color: #2563a8; }
-.agent-cmo { color: #b84080; }
-.agent-cfo { color: #1a8a5a; }
-.agent-cso { color: #6d4ab5; }
-.agent-cdo { color: #0e7fa0; }
+/* Agent colors - department palette */
+/* Marketing */
+.agent-mkt_lead { color: #ec4899; }
+.agent-mkt_content { color: #f59e0b; }
+.agent-mkt_growth { color: #8b5cf6; }
+/* Development */
+.agent-dev_lead { color: #3b82f6; }
+.agent-dev_backend { color: #10b981; }
+.agent-dev_frontend { color: #06b6d4; }
 
-.badge-ceo { background: #fef3e0; color: #c27a1a; border: 1px solid #f0d8a8; }
-.badge-cto { background: #e8f0fa; color: #2563a8; border: 1px solid #b0cce8; }
-.badge-cmo { background: #fce8f0; color: #b84080; border: 1px solid #e8b0c8; }
-.badge-cfo { background: #e0f5ec; color: #1a8a5a; border: 1px solid #a8dcc4; }
-.badge-cso { background: #f0e8fa; color: #6d4ab5; border: 1px solid #c4b0e0; }
-.badge-cdo { background: #e0f4f8; color: #0e7fa0; border: 1px solid #a0d4e4; }
+.badge-mkt_lead { background: #fce8f0; color: #ec4899; border: 1px solid #e8b0c8; }
+.badge-mkt_content { background: #fef3e0; color: #d97706; border: 1px solid #f0d8a8; }
+.badge-mkt_growth { background: #f0e8fa; color: #8b5cf6; border: 1px solid #c4b0e0; }
+.badge-dev_lead { background: #e8f0fa; color: #3b82f6; border: 1px solid #b0cce8; }
+.badge-dev_backend { background: #e0f5ec; color: #10b981; border: 1px solid #a8dcc4; }
+.badge-dev_frontend { background: #e0f4f8; color: #06b6d4; border: 1px solid #a0d4e4; }
+.agent-dev_ai { color: #f43f5e; }
+.badge-dev_ai { background: #ffe4e8; color: #f43f5e; border: 1px solid #f0b0b8; }

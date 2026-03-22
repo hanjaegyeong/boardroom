@@ -1,16 +1,17 @@
 import { marked } from 'marked';
 
 interface AgentColors {
-  [key: string]: { name: string; title: string; color: string };
+  [key: string]: { name: string; title: string; color: string; department: string };
 }
 
 const AGENT_INFO: AgentColors = {
-  ceo: { name: 'Alexandra', title: 'CEO', color: '#f59e0b' },
-  cto: { name: 'Marcus', title: 'CTO', color: '#3b82f6' },
-  cmo: { name: 'Sofia', title: 'CMO', color: '#ec4899' },
-  cfo: { name: 'James', title: 'CFO', color: '#10b981' },
-  cso: { name: 'Elena', title: 'CSO', color: '#8b5cf6' },
-  cdo: { name: 'David', title: 'CDO', color: '#06b6d4' },
+  mkt_lead:    { name: 'Jiyeon',  title: '마케팅팀 팀장',  color: '#ec4899', department: '마케팅' },
+  mkt_content: { name: 'Seoha',   title: '콘텐츠 전략가', color: '#f59e0b', department: '마케팅' },
+  mkt_growth:  { name: 'Minjun',  title: '그로스 해커',   color: '#8b5cf6', department: '마케팅' },
+  dev_lead:    { name: 'Hyunwoo', title: '개발팀 팀장',    color: '#3b82f6', department: '개발' },
+  dev_backend: { name: 'Eunji',   title: '백엔드 개발자', color: '#10b981', department: '개발' },
+  dev_frontend:{ name: 'Taehyun', title: '프론트 개발자', color: '#06b6d4', department: '개발' },
+  dev_ai:      { name: 'Siwon',   title: 'AI 담당',      color: '#f43f5e', department: '개발' },
 };
 
 export class Sidebar {

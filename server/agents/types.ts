@@ -6,6 +6,15 @@ export interface AgentPersona {
   systemPrompt: string;
   expertise: string[];
   documentType: string;
+  department: 'marketing' | 'development';
+  role: 'lead' | 'member';
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  agents: string[];
+  lead: string;
 }
 
 export interface Message {
@@ -36,6 +45,7 @@ export type SSEEvent =
   | { type: 'task_accepted'; taskId: string; summary: string }
   | { type: 'phase_change'; phase: string; label: string }
   | { type: 'agents_selected'; agents: string[] }
+  | { type: 'department_activated'; department: string; agents: string[] }
   | { type: 'agent_moving'; agentId: string; destination: 'meeting' | 'desk' }
   | { type: 'agent_speak_start'; agentId: string; name: string; title: string }
   | { type: 'agent_speak_token'; agentId: string; token: string }

@@ -2,9 +2,13 @@ import { MAP_WIDTH, MAP_HEIGHT } from './zones';
 
 // Map layers
 // 0 = empty, 1 = floor, 2 = carpet, 3 = wall
-// Furniture layer: 0=empty, D=desk, C=computer, T=conference table, P=plant, W=whiteboard
 
-// Create the floor layer (30x24 grid)
+export interface FurnitureItem {
+  x: number;
+  y: number;
+  type: string;
+}
+
 function createFloorLayer(): number[][] {
   const map: number[][] = [];
 
@@ -13,23 +17,36 @@ function createFloorLayer(): number[][] {
     for (let x = 0; x < MAP_WIDTH; x++) {
       // Walls on edges
       if (y === 0 || y === MAP_HEIGHT - 1 || x === 0 || x === MAP_WIDTH - 1) {
-        row.push(3); // wall
-        continue;
-      }
-
-      // Internal walls
-      // Horizontal dividers
-      if (y === 7 && (x < 6 || (x > 7 && x < 12))) {
-        row.push(3);
-        continue;
-      }
-      if (y === 13 && (x < 6 || (x > 7 && x < 12))) {
         row.push(3);
         continue;
       }
 
-      // Lounge area - carpet (open space, no wall)
-      if (x >= 15 && x <= 24 && y >= 1 && y <= 9) {
+      // Horizontal divider between departments (y=12), with gap for doorway at x=7-8
+      if (y === 12 && x < 14 && !(x >= 6 && x <= 8)) {
+        row.push(3);
+        continue;
+      }
+
+      // Vertical divider between departments and lounge (x=14), with gap at y=11-13
+      if (x === 14 && !(y >= 10 && y <= 14)) {
+        row.push(3);
+        continue;
+      }
+
+      // Marketing department carpet area (top-left desks area)
+      if (x >= 1 && x <= 13 && y >= 1 && y <= 5) {
+        row.push(2);
+        continue;
+      }
+
+      // Development department carpet area (bottom-left desks area)
+      if (x >= 1 && x <= 13 && y >= 14 && y <= 18) {
+        row.push(2);
+        continue;
+      }
+
+      // Lounge/meeting area carpet (right side center)
+      if (x >= 15 && x <= 28 && y >= 8 && y <= 16) {
         row.push(2);
         continue;
       }
@@ -43,73 +60,64 @@ function createFloorLayer(): number[][] {
   return map;
 }
 
-// Furniture placement data
-export interface FurnitureItem {
-  x: number;
-  y: number;
-  type: string; // tile key
-}
-
 function createFurniture(): FurnitureItem[] {
   const items: FurnitureItem[] = [];
 
-  // CEO office (top-left)
+  // === Marketing Department (top-left) ===
+  // Lead desk
   items.push({ x: 3, y: 2, type: 'office_desk' });
   items.push({ x: 3, y: 4, type: 'office_chair' });
+  // Content strategist desk
+  items.push({ x: 7, y: 2, type: 'office_desk' });
+  items.push({ x: 7, y: 4, type: 'office_chair' });
+  // Growth hacker desk
+  items.push({ x: 11, y: 2, type: 'office_desk' });
+  items.push({ x: 11, y: 4, type: 'office_chair' });
+  // Decorations
   items.push({ x: 1, y: 1, type: 'plant' });
+  items.push({ x: 13, y: 1, type: 'plant' });
 
-  // CDO office (top-middle)
-  items.push({ x: 9, y: 2, type: 'office_desk' });
-  items.push({ x: 9, y: 4, type: 'office_chair' });
+  // === Development Department (bottom-left) ===
+  // Lead desk
+  items.push({ x: 2, y: 14, type: 'office_desk' });
+  items.push({ x: 2, y: 16, type: 'office_chair' });
+  // Backend dev desk
+  items.push({ x: 5, y: 14, type: 'office_desk' });
+  items.push({ x: 5, y: 16, type: 'office_chair' });
+  // Frontend dev desk
+  items.push({ x: 8, y: 14, type: 'office_desk' });
+  items.push({ x: 8, y: 16, type: 'office_chair' });
+  // AI dev desk
+  items.push({ x: 11, y: 14, type: 'office_desk' });
+  items.push({ x: 11, y: 16, type: 'office_chair' });
+  // Decorations
+  items.push({ x: 1, y: 22, type: 'plant' });
+  items.push({ x: 13, y: 22, type: 'plant' });
 
-  // CTO office (middle-left)
-  items.push({ x: 3, y: 8, type: 'office_desk' });
-  items.push({ x: 3, y: 10, type: 'office_chair' });
+  // === Shared Meeting/Lounge Area (right side) ===
+  items.push({ x: 22, y: 8, type: 'whiteboard' });
+  items.push({ x: 15, y: 8, type: 'plant' });
+  items.push({ x: 28, y: 8, type: 'plant' });
+  items.push({ x: 15, y: 16, type: 'plant' });
+  items.push({ x: 28, y: 16, type: 'plant' });
 
-  // CMO office (middle-middle)
-  items.push({ x: 9, y: 8, type: 'office_desk' });
-  items.push({ x: 9, y: 10, type: 'office_chair' });
-  items.push({ x: 12, y: 8, type: 'plant' });
-
-  // CFO office (bottom-left)
-  items.push({ x: 3, y: 14, type: 'office_desk' });
-  items.push({ x: 3, y: 16, type: 'office_chair' });
-
-  // CSO office (bottom-middle)
-  items.push({ x: 9, y: 14, type: 'office_desk' });
-  items.push({ x: 9, y: 16, type: 'office_chair' });
-  items.push({ x: 12, y: 14, type: 'plant' });
-
-  // Lounge area
-  items.push({ x: 22, y: 1, type: 'whiteboard' });
-  items.push({ x: 15, y: 1, type: 'plant' });
-  items.push({ x: 24, y: 1, type: 'plant' });
-  items.push({ x: 15, y: 9, type: 'plant' });
-  items.push({ x: 24, y: 9, type: 'plant' });
-
-  // Accountant corner (bottom-right)
+  // === Accountant corner (bottom-right) ===
   items.push({ x: 28, y: 20, type: 'office_desk' });
   items.push({ x: 28, y: 22, type: 'office_chair' });
-
-  // Hallway plants
-  items.push({ x: 7, y: 1, type: 'plant' });
-  items.push({ x: 7, y: 19, type: 'plant' });
 
   return items;
 }
 
-// Collision map: true = blocked
 function createCollisionMap(floor: number[][], furniture: FurnitureItem[]): boolean[][] {
   const map: boolean[][] = [];
   for (let y = 0; y < MAP_HEIGHT; y++) {
     const row: boolean[] = [];
     for (let x = 0; x < MAP_WIDTH; x++) {
-      row.push(floor[y]?.[x] === 3); // walls are blocked
+      row.push(floor[y]?.[x] === 3);
     }
     map.push(row);
   }
 
-  // Block furniture positions
   for (const item of furniture) {
     if (item.type === 'office_desk' || item.type === 'desk' || item.type === 'table_conf' || item.type === 'plant') {
       if (map[item.y]) {

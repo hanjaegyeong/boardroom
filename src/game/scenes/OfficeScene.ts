@@ -58,7 +58,6 @@ export class OfficeScene extends Phaser.Scene {
           img.setScale(1);
           img.setDepth(5);
         } else if (item.type === 'office_chair') {
-          // Chair ABOVE character (depth 10) so backrest wraps around them
           img.setScale(1);
           img.setDepth(12);
         } else {
@@ -68,20 +67,16 @@ export class OfficeScene extends Phaser.Scene {
       }
     }
 
-    // Add room labels
-    this.addRoomLabel(4, 1, 'CEO Office');
-    this.addRoomLabel(10, 1, 'CDO Office');
-    this.addRoomLabel(4, 7.5, 'CTO Office');
-    this.addRoomLabel(10, 7.5, 'CMO Office');
-    this.addRoomLabel(4, 13.5, 'CFO Office');
-    this.addRoomLabel(10, 13.5, 'CSO Office');
-    this.addRoomLabel(19, 1, 'Lounge');
+    // Add department/area labels
+    this.addRoomLabel(7, 1, '마케팅부서');
+    this.addRoomLabel(7, 13, '개발부서');
+    this.addRoomLabel(22, 7, '회의실');
     this.addRoomLabel(28, 19.5, 'Cost Center');
 
     // Create agent characters
     this.agentManager = new AgentManager(this);
 
-    // Accountant idle typing loop - looks busy at desk
+    // Accountant idle typing loop
     this.time.addEvent({
       delay: 3000 + Math.random() * 4000,
       loop: true,
@@ -135,16 +130,13 @@ export class OfficeScene extends Phaser.Scene {
     const agent = this.agentManager.getAgent(agentId);
     if (!agent) return;
 
-    // Remove existing bubble for this agent
     this.hideSpeechBubble(agentId);
 
     const x = agent.sprite.x;
     const y = agent.sprite.y + BUBBLE_OFFSET_Y;
 
-    // Truncate text for bubble
     const displayText = text.length > BUBBLE_MAX_CHARS ? text.substring(0, BUBBLE_MAX_CHARS - 3) + '...' : text;
 
-    // Create background
     const bg = this.add.graphics();
     const textObj = this.add.text(x, y, displayText, {
       fontSize: BUBBLE_FONT_SIZE,
@@ -156,7 +148,6 @@ export class OfficeScene extends Phaser.Scene {
     textObj.setOrigin(0.5, 1);
     textObj.setDepth(25);
 
-    // Draw bubble background
     const bounds = textObj.getBounds();
     const pad = BUBBLE_PADDING;
     bg.fillStyle(0xffffff, 0.95);
@@ -188,7 +179,6 @@ export class OfficeScene extends Phaser.Scene {
       triX, triY + 6
     );
 
-    // Auto-hide after delay
     const timeout = this.time.delayedCall(4000, () => {
       this.hideSpeechBubble(agentId);
     });
@@ -216,7 +206,6 @@ export class OfficeScene extends Phaser.Scene {
     const agent = this.agentManager.getAgent('accountant');
     if (!agent) return;
 
-    // Remove previous cost bubble
     if (this.costBubble) {
       this.costBubble.bg.destroy();
       this.costBubble.text.destroy();
@@ -259,7 +248,6 @@ export class OfficeScene extends Phaser.Scene {
     );
     bg.setDepth(24);
 
-    // Triangle pointer
     bg.fillTriangle(x - 4, bounds.y + bounds.height + pad, x + 4, bounds.y + bounds.height + pad, x, bounds.y + bounds.height + pad + 6);
 
     this.costBubble = { bg, text: textObj };

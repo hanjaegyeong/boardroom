@@ -1,7 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { personas, AGENT_ORDER } from './personas.js';
+import { personas, DEPARTMENTS, AGENT_ORDER, getDepartmentAgents } from './personas.js';
 import { store } from '../store.js';
 import { SSEEvent, Document } from './types.js';
 
@@ -9,7 +9,6 @@ const CLAUDE_PATH = process.env.CLAUDE_PATH || 'claude';
 
 type SSEEmitter = (event: SSEEvent) => void;
 
-// Token usage tracking
 interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
@@ -19,30 +18,69 @@ interface TokenUsage {
 
 let tokenUsage: TokenUsage = { inputTokens: 0, outputTokens: 0, totalCalls: 0, costUsd: 0 };
 
-// Persistent state for continuous discussion
 let currentEmit: SSEEmitter | null = null;
 let currentTask = '';
 let roundNumber = 0;
 let allDiscussions: Record<string, string>[] = [];
 let analyses: Record<string, string> = {};
 let allParticipants: Set<string> = new Set();
+let activeDepartments: string[] = [];
 let activeProcess: ChildProcess | null = null;
 let isStopped = false;
 
-// Max tokens per call type
 const MAX_BUDGET_DISCUSSION = '0.05';
 const MAX_BUDGET_DOCUMENT = '0.25';
 
-// --- Dynamic agent selection ---
+// --- Department analysis ---
 
-async function selectNextSpeakers(
+async function analyzeTaskDepartments(task: string, previousContext: string): Promise<string[]> {
+  const deptDesc = Object.entries(DEPARTMENTS)
+    .map(([id, dept]) => {
+      const agents = dept.agents.map(aid => {
+        const p = personas[aid];
+        return `${p.title} ${p.name} (${p.expertise.join(', ')})`;
+      }).join(', ');
+      return `- ${id} (${dept.name}): ${agents}`;
+    })
+    .join('\n');
+
+  const prompt = `다음 업무 요청을 분석하여 어떤 부서가 참여해야 하는지 결정하세요.
+
+업무: ${task}
+${previousContext ? `\n이전 회의 맥락:\n${truncateText(previousContext, 500)}\n` : ''}
+가용 부서:
+${deptDesc}
+
+규칙:
+- 해당 업무와 직접 관련된 부서만 선택
+- 두 부서 모두 필요하면 둘 다 선택
+- JSON 배열만 출력 (예: ["marketing"] 또는 ["marketing","development"])
+JSON 배열만 출력:`;
+
+  try {
+    const response = await callClaude(prompt, '0.03');
+    const match = response.match(/\[.*\]/s);
+    if (match) {
+      const ids = JSON.parse(match[0]) as string[];
+      return ids.filter(id => id in DEPARTMENTS);
+    }
+  } catch (err) {
+    console.error('Department analysis error:', err);
+  }
+  // Default: both departments
+  return ['marketing', 'development'];
+}
+
+// --- Dynamic speaker selection within departments ---
+
+async function selectDepartmentSpeakers(
+  department: string,
   task: string,
   context: string,
-  alreadySpokenThisRound: string[] = [],
+  alreadySpoken: string[] = [],
 ): Promise<string[]> {
-  const available = AGENT_ORDER.filter(
-    id => id !== 'ceo' && !alreadySpokenThisRound.includes(id),
-  );
+  const deptAgents = getDepartmentAgents(department);
+  const available = deptAgents.filter(id => !alreadySpoken.includes(id));
   if (available.length === 0) return [];
 
   const agentDesc = available
@@ -53,24 +91,24 @@ async function selectNextSpeakers(
     })
     .join('\n');
 
-  const prompt = `현재 회의를 분석하고, 다음에 발언이 필요한 임원을 선택하세요.
+  const prompt = `현재 회의를 분석하고, ${DEPARTMENTS[department].name}에서 다음에 발언이 필요한 팀원을 선택하세요.
 
 업무: ${task}
 
 현재 논의:
 ${truncateText(context, 1500)}
 
-발언 가능한 임원:
+발언 가능한 팀원:
 ${agentDesc}
 
 규칙:
-- 현재 논의에서 전문성이 직접 필요한 임원만 선택
+- 현재 논의에서 전문성이 직접 필요한 팀원만 선택
 - 필요 없으면 빈 배열 []
-- 최대 4명
-JSON 배열만 출력 (예: ["cto","cfo"]):`;
+- 최대 3명
+JSON 배열만 출력:`;
 
   try {
-    const response = await callClaude(prompt, 200);
+    const response = await callClaude(prompt, '0.03');
     const match = response.match(/\[.*\]/s);
     if (match) {
       const ids = JSON.parse(match[0]) as string[];
@@ -79,10 +117,9 @@ JSON 배열만 출력 (예: ["cto","cfo"]):`;
   } catch (err) {
     console.error('Speaker selection error:', err);
   }
-  return [];
+  return available;
 }
 
-// Bring an agent into the meeting if not already present
 async function bringAgent(agentId: string, emit: SSEEmitter): Promise<void> {
   if (allParticipants.has(agentId)) return;
   allParticipants.add(agentId);
@@ -103,6 +140,7 @@ export async function startRoundtable(task: string, emit: SSEEmitter) {
   allDiscussions = [];
   analyses = {};
   allParticipants = new Set();
+  activeDepartments = [];
   isStopped = false;
   tokenUsage = { inputTokens: 0, outputTokens: 0, totalCalls: 0, costUsd: 0 };
 
@@ -111,43 +149,53 @@ export async function startRoundtable(task: string, emit: SSEEmitter) {
   try {
     emit({ type: 'task_accepted', taskId, summary: task });
 
-    // CEO always joins first
-    await bringAgent('ceo', emit);
+    // Load previous conversation context
+    const previousContext = store.getRecentContext();
 
-    // CEO Briefing
-    emit({ type: 'phase_change', phase: 'briefing', label: 'CEO 브리핑' });
-    const ceoBriefing = await getAgentResponse('ceo',
-      `새로운 업무가 접수되었습니다. 당신이 CEO로서 이 업무를 팀에 브리핑해주세요.\n\n업무 내용: ${task}\n\n팀원들에게 각자의 역할에 맞게 이 업무에 대한 의견과 분석을 요청하세요.`,
-      emit);
-    if (isStopped) return;
-
-    analyses = { ceo: ceoBriefing };
-
-    // Dynamically select first batch based on CEO's briefing
-    emit({ type: 'phase_change', phase: 'analysis', label: '관련 전문가 호출 중...' });
-    const firstBatch = await selectNextSpeakers(task, ceoBriefing);
+    // Determine which departments are needed
+    emit({ type: 'phase_change', phase: 'analysis', label: '관련 부서 분석 중...' });
+    activeDepartments = await analyzeTaskDepartments(task, previousContext);
     emitUsageUpdate(emit);
     if (isStopped) return;
 
-    // Bring first batch into meeting
-    for (const agentId of firstBatch) {
+    // For each relevant department
+    for (const deptId of activeDepartments) {
       if (isStopped) return;
-      await bringAgent(agentId, emit);
-    }
+      const dept = DEPARTMENTS[deptId];
 
-    // Each gives initial analysis
-    emit({ type: 'phase_change', phase: 'analysis', label: '개별 분석' });
-    for (const agentId of firstBatch) {
-      if (isStopped) return;
-      const persona = personas[agentId];
-      const response = await getAgentResponse(agentId,
-        `CEO Alexandra가 다음과 같이 팀 회의를 시작했습니다:\n\n[CEO Alexandra]: ${ceoBriefing}\n\n원래 업무 요청: ${task}\n\n당신의 전문 분야(${persona.expertise.join(', ')}) 관점에서 이 업무에 대한 초기 분석과 의견을 제시해주세요.`,
+      emit({ type: 'department_activated', department: deptId, agents: dept.agents });
+
+      // Team lead joins and briefs
+      await bringAgent(dept.lead, emit);
+      emit({ type: 'phase_change', phase: 'briefing', label: `${dept.name} 팀장 브리핑` });
+
+      const contextStr = previousContext
+        ? `\n\n참고로 이전 회의에서 다뤘던 내용입니다:\n${previousContext}`
+        : '';
+
+      const leadBriefing = await getAgentResponse(dept.lead,
+        `새로운 업무가 접수되었습니다. ${dept.name} 팀장으로서 이 업무를 팀에 브리핑해주세요.\n\n업무 내용: ${task}${contextStr}\n\n팀원들에게 각자의 역할에 맞게 이 업무에 대한 의견과 분석을 요청하세요.`,
         emit);
-      analyses[agentId] = response;
+      if (isStopped) return;
+
+      analyses[dept.lead] = leadBriefing;
+
+      // Bring team members
+      emit({ type: 'phase_change', phase: 'analysis', label: `${dept.name} 팀원 분석` });
+      const members = dept.agents.filter(id => id !== dept.lead);
+      for (const memberId of members) {
+        if (isStopped) return;
+        await bringAgent(memberId, emit);
+        const persona = personas[memberId];
+        const response = await getAgentResponse(memberId,
+          `${personas[dept.lead].title} ${personas[dept.lead].name}이 다음과 같이 팀 회의를 시작했습니다:\n\n[${personas[dept.lead].title} ${personas[dept.lead].name}]: ${leadBriefing}\n\n원래 업무 요청: ${task}\n\n당신의 전문 분야(${persona.expertise.join(', ')}) 관점에서 이 업무에 대한 초기 분석과 의견을 제시해주세요.`,
+          emit);
+        analyses[memberId] = response;
+      }
     }
     if (isStopped) return;
 
-    // First discussion round
+    // Intra-department discussion round
     await runDiscussionRound(emit);
 
   } catch (error: any) {
@@ -197,6 +245,9 @@ export async function finalizeDocuments(emit: SSEEmitter) {
 
     const outputDir = saveToDesktop(currentTask, fullLog);
 
+    // Save session for context persistence
+    store.saveSession();
+
     emit({ type: 'phase_change', phase: 'complete', label: '회의 완료' });
     emit({
       type: 'task_complete',
@@ -216,6 +267,9 @@ export function stopAll() {
   isStopped = true;
   store.isProcessing = false;
 
+  // Save whatever we have so far
+  store.saveSession();
+
   if (activeProcess) {
     activeProcess.kill('SIGTERM');
     activeProcess = null;
@@ -231,66 +285,57 @@ export function stopAll() {
 
 async function runDiscussionRound(emit: SSEEmitter) {
   roundNumber++;
-  emit({ type: 'phase_change', phase: 'discussion', label: `토론 라운드 ${roundNumber}` });
-
   const thisRound: Record<string, string> = {};
   const spokenThisRound: string[] = [];
 
-  // Wave 1: select speakers based on current context
-  const context = buildPreviousContext();
-  const wave1 = await selectNextSpeakers(currentTask, context, spokenThisRound);
-  emitUsageUpdate(emit);
-
-  // Bring new agents if needed
-  for (const agentId of wave1) {
+  // Phase 1: Intra-department discussion
+  for (const deptId of activeDepartments) {
     if (isStopped) return;
-    await bringAgent(agentId, emit);
+    const dept = DEPARTMENTS[deptId];
+    emit({ type: 'phase_change', phase: 'discussion', label: `${dept.name} 내부 토론 (라운드 ${roundNumber})` });
+
+    const context = buildPreviousContext();
+    const speakers = await selectDepartmentSpeakers(deptId, currentTask, context, spokenThisRound);
+    emitUsageUpdate(emit);
+
+    // Include lead if not in speakers
+    const deptSpeakers = speakers.includes(dept.lead) ? speakers : [dept.lead, ...speakers];
+
+    for (const agentId of deptSpeakers) {
+      if (isStopped) return;
+      const otherOpinions = Object.entries({ ...analyses, ...thisRound })
+        .filter(([id]) => id !== agentId)
+        .map(([id, text]) => `[${personas[id].title} ${personas[id].name}]: ${truncateText(text, 300)}`)
+        .join('\n\n');
+
+      const prompt = roundNumber === 1
+        ? `지금까지의 팀 토론 내용입니다:\n\n${otherOpinions}\n\n다른 팀원들의 의견을 듣고, 동의하거나 보완할 점, 우려사항, 또는 새로운 제안이 있다면 말씀해주세요.`
+        : `토론 라운드 ${roundNumber}입니다.\n\n지금까지의 전체 논의:\n${buildPreviousContext()}\n\n이전 라운드를 바탕으로 더 발전시킬 아이디어, 새로운 관점, 구체적인 실행 방안을 제시해주세요.`;
+
+      const response = await getAgentResponse(agentId, prompt, emit);
+      thisRound[agentId] = response;
+      spokenThisRound.push(agentId);
+    }
   }
 
-  // Include CEO in discussion if not in wave1
-  const speakers1 = wave1.includes('ceo') ? wave1 : ['ceo', ...wave1];
+  // Phase 2: Cross-department meeting (if multiple departments are active)
+  if (activeDepartments.length > 1 && !isStopped) {
+    emit({ type: 'phase_change', phase: 'discussion', label: '부서 간 합동 회의' });
 
-  for (const agentId of speakers1) {
-    if (isStopped) return;
-    const prevContext = buildPreviousContext();
-    const otherOpinions = Object.entries({ ...analyses, ...thisRound })
-      .filter(([id]) => id !== agentId)
-      .map(([id, text]) => `[${personas[id].title} ${personas[id].name}]: ${truncateText(text, 300)}`)
-      .join('\n\n');
-
-    const prompt = roundNumber === 1
-      ? `지금까지의 팀 토론 내용입니다:\n\n${otherOpinions}\n\n다른 임원들의 의견을 듣고, 동의하거나 보완할 점, 우려사항, 또는 새로운 제안이 있다면 말씀해주세요.`
-      : `토론 라운드 ${roundNumber}입니다.\n\n지금까지의 전체 논의:\n${prevContext}\n\n이전 라운드를 바탕으로 더 발전시킬 아이디어, 새로운 관점, 구체적인 실행 방안을 제시해주세요.`;
-
-    const response = await getAgentResponse(agentId, prompt, emit);
-    thisRound[agentId] = response;
-    spokenThisRound.push(agentId);
-  }
-
-  // Wave 2: check if new experts are needed based on what just emerged
-  if (!isStopped) {
-    const updatedContext = buildPreviousContext() + '\n\n--- 현재 라운드 ---\n\n' +
+    const crossContext = buildPreviousContext() + '\n\n--- 현재 라운드 ---\n\n' +
       Object.entries(thisRound)
         .map(([id, text]) => `[${personas[id].title} ${personas[id].name}]: ${text}`)
         .join('\n\n');
 
-    const wave2 = await selectNextSpeakers(currentTask, updatedContext, spokenThisRound);
-    emitUsageUpdate(emit);
-
-    if (wave2.length > 0) {
-      emit({ type: 'phase_change', phase: 'discussion', label: `추가 전문가 의견` });
-
-      for (const agentId of wave2) {
-        if (isStopped) return;
-        await bringAgent(agentId, emit);
-      }
-
-      for (const agentId of wave2) {
-        if (isStopped) return;
-        const prompt = `팀 논의에 합류하게 되었습니다.\n\n원래 업무: ${currentTask}\n\n지금까지의 논의:\n${updatedContext}\n\n당신의 전문 분야 관점에서 의견을 제시해주세요. 특히 기존 논의에서 놓친 점이나 보완할 사항을 중심으로 답변하세요.`;
-        const response = await getAgentResponse(agentId, prompt, emit);
-        thisRound[agentId] = response;
-        spokenThisRound.push(agentId);
+    // Each department lead speaks in cross-department context
+    for (const deptId of activeDepartments) {
+      if (isStopped) return;
+      const leadId = DEPARTMENTS[deptId].lead;
+      if (spokenThisRound.includes(leadId)) {
+        // Lead speaks again with cross-department perspective
+        const prompt = `부서 간 합동 회의입니다. 다른 부서의 의견도 종합하여, ${DEPARTMENTS[deptId].name} 관점에서 협업 방안이나 추가 제안을 해주세요.\n\n전체 논의:\n${crossContext}`;
+        const response = await getAgentResponse(leadId, prompt, emit);
+        thisRound[`${leadId}_cross`] = response;
       }
     }
   }
@@ -348,7 +393,6 @@ function streamClaude(prompt: string, onToken: (token: string) => void, maxBudge
             const text = event.delta?.text || '';
             if (text) { fullText += text; onToken(text); }
           } else if (event.type === 'result') {
-            // Extract usage from result event
             if (event.usage) {
               tokenUsage.inputTokens += event.usage.input_tokens || 0;
               tokenUsage.outputTokens += event.usage.output_tokens || 0;
@@ -418,7 +462,6 @@ function callClaude(prompt: string, maxBudget: string = MAX_BUDGET_DOCUMENT): Pr
     child.stderr.on('data', (chunk: Buffer) => { stderrText += chunk.toString(); });
     child.on('close', (code) => {
       activeProcess = null;
-      // Parse JSON output to extract result and usage
       let resultText = fullText.trim();
       try {
         const parsed = JSON.parse(resultText);
@@ -508,7 +551,6 @@ async function generateDocument(agentId: string, task: string, discussionLog: st
 
 // --- Context builders ---
 
-// Truncate text to maxLen, cutting at the last word boundary
 function truncateText(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   const truncated = text.slice(0, maxLen);
@@ -517,7 +559,6 @@ function truncateText(text: string, maxLen: number): string {
 }
 
 function buildPreviousContext(): string {
-  // Compress analyses for context (keep to ~200 chars each)
   let ctx = Object.entries(analyses)
     .map(([id, text]) => `[${personas[id].title} ${personas[id].name} - 초기분석]: ${truncateText(text, 200)}`)
     .join('\n\n');
@@ -527,9 +568,9 @@ function buildPreviousContext(): string {
     ctx += `\n\n--- 라운드 ${i + 1} ---\n\n`;
     ctx += Object.entries(allDiscussions[i])
       .map(([id, text]) => {
-        // Keep latest round in full, compress older rounds
+        const cleanId = id.replace(/_cross$/, '');
         const content = isLatestRound ? text : truncateText(text, 200);
-        return `[${personas[id].title} ${personas[id].name}]: ${content}`;
+        return `[${personas[cleanId].title} ${personas[cleanId].name}]: ${content}`;
       })
       .join('\n\n');
   }
@@ -544,7 +585,9 @@ function buildFullLog(): string {
   for (let i = 0; i < allDiscussions.length; i++) {
     log += `\n=== 토론 라운드 ${i + 1} ===\n\n`;
     for (const [id, text] of Object.entries(allDiscussions[i])) {
-      log += `[${personas[id].title} ${personas[id].name}]: ${text}\n\n`;
+      const cleanId = id.replace(/_cross$/, '');
+      const suffix = id.endsWith('_cross') ? ' (부서 간 회의)' : '';
+      log += `[${personas[cleanId].title} ${personas[cleanId].name}${suffix}]: ${text}\n\n`;
     }
   }
   return log;
@@ -566,7 +609,7 @@ function saveToDesktop(task: string, discussionLog: string): string {
   try {
     fs.mkdirSync(outputDir, { recursive: true });
     fs.writeFileSync(path.join(outputDir, '00_회의기록.md'),
-      `# 회의 기록\n\n**업무 요청:** ${task}\n**일시:** ${now.toLocaleString('ko-KR')}\n**토론 라운드:** ${roundNumber}회\n\n---\n\n${discussionLog}`, 'utf-8');
+      `# 회의 기록\n\n**업무 요청:** ${task}\n**일시:** ${now.toLocaleString('ko-KR')}\n**참여 부서:** ${activeDepartments.map(d => DEPARTMENTS[d].name).join(', ')}\n**토론 라운드:** ${roundNumber}회\n\n---\n\n${discussionLog}`, 'utf-8');
 
     for (let i = 0; i < store.documents.length; i++) {
       const doc = store.documents[i];

@@ -18,6 +18,7 @@ export class AgentManager {
   private createAgents() {
     for (const char of CHARACTERS) {
       const zone = AGENT_ZONES[char.id];
+      if (!zone) continue;
       const agent = new AgentSprite(this.scene, char.id, zone.chair.x, zone.chair.y);
       this.agents.set(char.id, agent);
     }
@@ -32,7 +33,7 @@ export class AgentManager {
   startWandering(agentIds?: string[]) {
     const ids = agentIds || Array.from(this.agents.keys()).filter(id => id !== 'accountant');
     for (const id of ids) {
-      if (this.inMeeting.has(id)) continue; // Don't wander if in meeting
+      if (this.inMeeting.has(id)) continue;
       this.wanderFlags.set(id, true);
       this.scheduleWander(id);
     }
@@ -55,7 +56,7 @@ export class AgentManager {
   private scheduleWander(agentId: string) {
     if (!this.wanderFlags.get(agentId)) return;
 
-    const delay = 2000 + Math.random() * 5000; // 2-7 seconds
+    const delay = 2000 + Math.random() * 5000;
     const timer = this.scene.time.delayedCall(delay, () => {
       this.wanderTimers.delete(agentId);
       this.doWander(agentId);
@@ -69,7 +70,6 @@ export class AgentManager {
     const agent = this.agents.get(agentId);
     if (!agent) return;
 
-    // Pick target: 70% local, 30% common area
     const local = AGENT_LOCAL_WAYPOINTS[agentId] || [];
     const useCommon = Math.random() < 0.3;
     const pool = useCommon ? COMMON_WAYPOINTS : local;
@@ -85,7 +85,6 @@ export class AgentManager {
       // Movement interrupted
     }
 
-    // Schedule next wander if still allowed
     if (this.wanderFlags.get(agentId)) {
       this.scheduleWander(agentId);
     }
@@ -93,15 +92,13 @@ export class AgentManager {
 
   // --- Meeting movement ---
 
-  // Pre-calculated positions for up to 6 agents in a circle
   private meetingPositions = getMeetingPositions(6);
 
-  // Add a single agent to an ongoing meeting
   async addAgentToMeeting(agentId: string): Promise<void> {
     if (this.inMeeting.has(agentId)) return;
 
     this.stopWandering([agentId]);
-    const slotIndex = this.inMeeting.size; // next available slot
+    const slotIndex = this.inMeeting.size;
     this.inMeeting.add(agentId);
 
     const agent = this.agents.get(agentId);
@@ -112,7 +109,6 @@ export class AgentManager {
     await agent.moveAlongPath(path);
   }
 
-  // Move a single agent to their desk
   async moveAgentToDesk(agentId: string): Promise<void> {
     const agent = this.agents.get(agentId);
     if (!agent) return;
@@ -124,7 +120,6 @@ export class AgentManager {
     await agent.moveAlongPath(path);
   }
 
-  // Batch move (kept for compatibility)
   async moveToMeeting(agentIds: string[]): Promise<void> {
     const promises: Promise<void>[] = [];
     for (let i = 0; i < agentIds.length; i++) {
@@ -150,6 +145,7 @@ export class AgentManager {
       if (!agent) continue;
 
       const zone = AGENT_ZONES[id];
+      if (!zone) continue;
       const from = agent.getPosition();
       const path = this.buildPath(from, zone.chair);
 
@@ -199,36 +195,51 @@ export class AgentManager {
   // --- Pathfinding ---
 
   private buildPath(from: Position, to: Position): Position[] {
-    // Very close: go direct
     const dist = Math.abs(from.x - to.x) + Math.abs(from.y - to.y);
     if (dist <= 3) {
       return [to];
     }
 
-    // Both on right side (x >= 13): move freely (no internal walls)
-    if (from.x >= 13 && to.x >= 13) {
+    // Both on right side (x > HALLWAY_X): move freely (no internal walls)
+    if (from.x > HALLWAY_X && to.x > HALLWAY_X) {
+      return [to];
+    }
+
+    // Both in same department zone (same vertical half, both left side)
+    const fromTop = from.y < 12;
+    const toTop = to.y < 12;
+    if (from.x <= HALLWAY_X && to.x <= HALLWAY_X && fromTop === toTop) {
       return [to];
     }
 
     const path: Position[] = [];
 
-    // From right side: go to corridor first
-    if (from.x >= 13) {
-      path.push({ x: 13, y: from.y });
-      path.push({ x: HALLWAY_X, y: from.y });
-    } else if (from.x !== HALLWAY_X) {
-      // From office: step into hallway
+    // Need to use corridor (x=HALLWAY_X) to cross between zones
+    if (from.x > HALLWAY_X) {
+      // From right side: go to corridor gap
+      path.push({ x: HALLWAY_X, y: from.y > 14 ? 12 : from.y < 10 ? 12 : from.y });
+    } else if (from.x < HALLWAY_X) {
+      // From left side department: step to corridor
       path.push({ x: HALLWAY_X, y: from.y });
     }
 
-    // Move vertically in hallway (crosses floor dividers through doorways at x=7)
-    if (from.y !== to.y) {
+    // Cross department divider through doorway (y=12, x=6-8)
+    if (fromTop !== toTop && from.x <= HALLWAY_X && to.x <= HALLWAY_X) {
+      // Use the doorway at x=7, y=12
+      path.push({ x: 7, y: 12 });
+    }
+
+    // Move vertically if needed
+    if (path.length > 0) {
+      const lastY = path[path.length - 1].y;
+      if (lastY !== to.y) {
+        path.push({ x: path[path.length - 1].x, y: to.y });
+      }
+    }
+
+    // From corridor to right side
+    if (to.x > HALLWAY_X) {
       path.push({ x: HALLWAY_X, y: to.y });
-    }
-
-    // From hallway to right side
-    if (to.x >= 13) {
-      path.push({ x: 13, y: to.y });
     }
 
     path.push(to);

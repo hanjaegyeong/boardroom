@@ -21,7 +21,6 @@ export class GameBridge {
 
   setScene(scene: OfficeScene) {
     this.scene = scene;
-    // Start wandering when scene is set
     scene.agentManager.startWandering();
   }
 
@@ -46,7 +45,6 @@ export class GameBridge {
       if (!this.scene) return;
 
       if (data.destination === 'meeting') {
-        // Individual agent joins meeting dynamically
         this.scene.agentManager.addAgentToMeeting(data.agentId);
       } else if (data.destination === 'desk') {
         this.scene.agentManager.moveAgentToDesk(data.agentId);
@@ -111,16 +109,13 @@ export class GameBridge {
       if (this.scene) {
         this.scene.agentManager.stopAllSpeaking();
         this.scene.hideAllBubbles();
-        // Resume wandering for meeting participants
         this.scene.agentManager.disperseFromMeeting();
+        // Keep cost bubble visible for 10s after task complete, then hide
+        const scene = this.scene;
+        setTimeout(() => scene.hideCostBubble(), 10000);
       }
       if (this.onTaskComplete) {
         this.onTaskComplete(data.summary);
-      }
-      // Keep cost bubble visible for 10s after task complete, then hide
-      if (this.scene) {
-        const scene = this.scene;
-        setTimeout(() => scene.hideCostBubble(), 10000);
       }
     });
 

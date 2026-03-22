@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { TILES, TILE_SIZE } from '../assets/tilePixels';
-import { generateCharacterTextures } from '../assets/characterPixels';
+import { generateCharacterTextures, CHARACTERS } from '../assets/characterPixels';
 import { generateFurnitureTextures } from '../assets/furnitureRenderer';
 
 export class BootScene extends Phaser.Scene {
@@ -39,7 +39,7 @@ export class BootScene extends Phaser.Scene {
       if (tex) tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
     }
     // Character sprite textures
-    const charIds = ['ceo', 'cto', 'cmo', 'cfo', 'cso', 'cdo', 'accountant'];
+    const charIds = CHARACTERS.map(c => c.id);
     for (const id of charIds) {
       const tex = this.textures.get(id);
       if (tex) tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
