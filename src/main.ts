@@ -5,7 +5,7 @@ import { EventStream } from './services/EventStream';
 import { GameBridge } from './services/GameBridge';
 import { Sidebar } from './ui/Sidebar';
 
-class BoardRoomApp {
+class NanoOfficeApp {
   private game: Phaser.Game;
   private eventStream: EventStream;
   private gameBridge: GameBridge;
@@ -157,6 +157,18 @@ class BoardRoomApp {
         this.buttonRow.style.display = '';
       }
     });
+
+    this.sidebar.setCeoMessageHandler(async (message) => {
+      try {
+        await fetch('/api/ceo-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message }),
+        });
+      } catch {
+        this.sidebar.addSystemMessage('메시지 전송 실패');
+      }
+    });
   }
 
   private setupMeetingControls() {
@@ -252,4 +264,4 @@ class BoardRoomApp {
   }
 }
 
-new BoardRoomApp();
+new NanoOfficeApp();

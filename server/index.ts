@@ -22,6 +22,6 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`BoardRoom server running on http://localhost:${PORT}`);
+  console.log(`Nano Office server running on http://localhost:${PORT}`);
   console.log('Using Claude CLI for AI responses (no API key needed)');
 });

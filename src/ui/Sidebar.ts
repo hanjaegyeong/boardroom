@@ -27,7 +27,10 @@ export class Sidebar {
   private deptSelector: HTMLElement;
   private currentMessageEl: HTMLElement | null = null;
   private currentMessageText = '';
+  private processing = false;
+  private ceoButton: HTMLButtonElement | null = null;
   private onSubmitTask: ((task: string, departments: string[]) => void) | null = null;
+  private onCeoMessage: ((message: string) => void) | null = null;
 
   constructor() {
     this.chatMessages = document.getElementById('chat-messages')!;
@@ -46,13 +49,19 @@ export class Sidebar {
     this.taskInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        this.submitTask();
+        if (!this.processing) {
+          this.submitTask();
+        }
       }
     });
   }
 
   setSubmitHandler(handler: (task: string, departments: string[]) => void) {
     this.onSubmitTask = handler;
+  }
+
+  setCeoMessageHandler(handler: (message: string) => void) {
+    this.onCeoMessage = handler;
   }
 
   getSelectedDepartments(): string[] {
@@ -70,6 +79,7 @@ export class Sidebar {
       return;
     }
 
+    this.taskInput.value = '';
     this.setProcessing(true);
     this.deptSelector.classList.add('hidden');
     this.topicBanner.textContent = task;
@@ -80,11 +90,53 @@ export class Sidebar {
     }
   }
 
+  private sendCeoMessage() {
+    const text = this.taskInput.value.trim();
+    if (!text) return;
+    this.addCeoMessage(text);
+    this.taskInput.value = '';
+    if (this.onCeoMessage) this.onCeoMessage(text);
+  }
+
+  addCeoMessage(text: string) {
+    const msgEl = document.createElement('div');
+    msgEl.className = 'chat-message';
+    msgEl.style.borderLeft = '4px solid #d97706';
+    msgEl.style.background = '#fffbeb';
+    msgEl.innerHTML = `
+      <div class="agent-name" style="color: #d97706;">
+        <span class="role-badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;">CEO</span>
+        You
+      </div>
+      <div class="message-text">${text}</div>
+    `;
+    this.chatMessages.appendChild(msgEl);
+    this.scrollToBottom();
+  }
+
   setProcessing(processing: boolean) {
-    this.taskInput.disabled = processing;
-    this.taskSubmit.disabled = processing;
-    this.taskSubmit.textContent = processing ? '회의 진행 중...' : '회의 시작';
-    if (!processing) {
+    this.processing = processing;
+    if (processing) {
+      this.taskInput.disabled = false;
+      this.taskSubmit.style.display = 'none';
+      this.taskInput.placeholder = 'CEO로 한마디...';
+      // Create CEO send button if not exists
+      if (!this.ceoButton) {
+        this.ceoButton = document.createElement('button');
+        this.ceoButton.textContent = 'CEO 발언';
+        this.ceoButton.className = 'btn-ceo';
+        this.ceoButton.addEventListener('click', () => this.sendCeoMessage());
+        this.taskSubmit.parentElement!.appendChild(this.ceoButton);
+      }
+      this.ceoButton.style.display = '';
+    } else {
+      this.taskInput.disabled = false;
+      this.taskSubmit.disabled = false;
+      this.taskSubmit.style.display = '';
+      this.taskSubmit.textContent = '회의 시작';
+      this.taskSubmit.style.background = '';
+      this.taskInput.placeholder = '업무를 입력하세요... (예: 새로운 B2B SaaS 제품 런칭 전략을 수립해주세요)';
+      if (this.ceoButton) this.ceoButton.style.display = 'none';
       this.deptSelector.classList.remove('hidden');
     }
   }

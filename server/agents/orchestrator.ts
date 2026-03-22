@@ -27,6 +27,7 @@ let allParticipants: Set<string> = new Set();
 let activeDepartments: string[] = [];
 let activeProcess: ChildProcess | null = null;
 let isStopped = false;
+let ceoMessages: string[] = [];
 
 const MAX_BUDGET_DISCUSSION = '0.05';
 const MAX_BUDGET_DOCUMENT = '0.25';
@@ -142,6 +143,7 @@ export async function startRoundtable(task: string, emit: SSEEmitter, selectedDe
   allParticipants = new Set();
   activeDepartments = [];
   isStopped = false;
+  ceoMessages = [];
   tokenUsage = { inputTokens: 0, outputTokens: 0, totalCalls: 0, costUsd: 0 };
 
   const taskId = Date.now().toString(36);
@@ -325,6 +327,11 @@ export function stopAll() {
         : '회의가 중단되었습니다.',
     });
   }
+}
+
+export function addCeoMessage(text: string, emit: SSEEmitter) {
+  ceoMessages.push(text);
+  emit({ type: 'ceo_message', text });
 }
 
 export function hasDiscussionContent(): boolean {
@@ -604,7 +611,7 @@ ${discussionLog}
       id: `doc_combined_${Date.now()}`,
       agentId: 'combined',
       agentTitle: '총합',
-      agentName: 'BoardRoom',
+      agentName: 'Nano Office',
       title: '총합 보고서',
       content,
       timestamp: Date.now(),
@@ -624,7 +631,7 @@ async function generateProjectFiles(task: string, discussionLog: string, emit: S
   const dateStr = now.toISOString().slice(0, 10);
   const timeStr = now.toTimeString().slice(0, 5).replace(':', '');
   const taskShort = task.slice(0, 30).replace(/[/\\?%*:|"<>]/g, '').trim();
-  const projectDir = path.join(desktopDir, `BoardRoom_Project_${dateStr}_${timeStr}_${taskShort}`);
+  const projectDir = path.join(desktopDir, `NanoOffice_Project_${dateStr}_${timeStr}_${taskShort}`);
 
   fs.mkdirSync(projectDir, { recursive: true });
 
@@ -705,6 +712,12 @@ function buildPreviousContext(): string {
       })
       .join('\n\n');
   }
+
+  if (ceoMessages.length > 0) {
+    ctx += '\n\n--- CEO 지시사항 ---\n\n';
+    ctx += ceoMessages.map(msg => `[CEO]: ${msg}`).join('\n\n');
+  }
+
   return ctx;
 }
 
@@ -721,6 +734,12 @@ function buildFullLog(): string {
       log += `[${personas[cleanId].title} ${personas[cleanId].name}${suffix}]: ${text}\n\n`;
     }
   }
+  if (ceoMessages.length > 0) {
+    log += '\n=== CEO 지시사항 ===\n\n';
+    for (const msg of ceoMessages) {
+      log += `[CEO]: ${msg}\n\n`;
+    }
+  }
   return log;
 }
 
@@ -735,7 +754,7 @@ function saveToDesktop(task: string, discussionLog: string): string {
   const dateStr = now.toISOString().slice(0, 10);
   const timeStr = now.toTimeString().slice(0, 5).replace(':', '');
   const taskShort = task.slice(0, 30).replace(/[/\\?%*:|"<>]/g, '').trim();
-  const outputDir = path.join(desktopDir, `BoardRoom_${dateStr}_${timeStr}_${taskShort}`);
+  const outputDir = path.join(desktopDir, `NanoOffice_${dateStr}_${timeStr}_${taskShort}`);
 
   try {
     fs.mkdirSync(outputDir, { recursive: true });

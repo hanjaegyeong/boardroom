@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { startRoundtable, continueDiscussion, finalizeDocuments, stopAll, hasDiscussionContent, generateProject } from '../agents/orchestrator.js';
+import { startRoundtable, continueDiscussion, finalizeDocuments, stopAll, hasDiscussionContent, generateProject, addCeoMessage } from '../agents/orchestrator.js';
 import { store } from '../store.js';
 import { SSEEvent } from '../agents/types.js';
 
@@ -95,6 +95,17 @@ router.post('/generate-project', async (_req: Request, res: Response) => {
     console.error('Project generation error:', err);
     broadcast({ type: 'error', message: err.message });
   });
+});
+
+// CEO message during meeting
+router.post('/ceo-message', (req: Request, res: Response) => {
+  const { message } = req.body;
+  if (!message || typeof message !== 'string') {
+    res.status(400).json({ error: 'Message required' });
+    return;
+  }
+  addCeoMessage(message, broadcast);
+  res.json({ status: 'sent' });
 });
 
 // Stop everything
