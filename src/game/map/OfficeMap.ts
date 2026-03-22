@@ -79,14 +79,11 @@ function createFurniture(): FurnitureItem[] {
 
   // === Development Department (bottom-left) ===
   // Lead desk
-  items.push({ x: 2, y: 14, type: 'office_desk' });
-  items.push({ x: 2, y: 16, type: 'office_chair' });
-  // Backend dev desk
-  items.push({ x: 5, y: 14, type: 'office_desk' });
-  items.push({ x: 5, y: 16, type: 'office_chair' });
-  // Frontend dev desk
-  items.push({ x: 8, y: 14, type: 'office_desk' });
-  items.push({ x: 8, y: 16, type: 'office_chair' });
+  items.push({ x: 3, y: 14, type: 'office_desk' });
+  items.push({ x: 3, y: 16, type: 'office_chair' });
+  // Fullstack dev desk
+  items.push({ x: 7, y: 14, type: 'office_desk' });
+  items.push({ x: 7, y: 16, type: 'office_chair' });
   // AI dev desk
   items.push({ x: 11, y: 14, type: 'office_desk' });
   items.push({ x: 11, y: 16, type: 'office_chair' });

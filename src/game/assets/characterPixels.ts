@@ -53,20 +53,11 @@ export const CHARACTERS: CharacterSpriteData[] = [
   {
     id: 'dev_backend',
     name: 'Eunji',
-    title: '백엔드',
+    title: '풀스택',
     color: '#10b981',
     skinColor: '#f0c090',
     hairColor: '#5a2a1a',
     suitColor: '#2a3830',
-  },
-  {
-    id: 'dev_frontend',
-    name: 'Taehyun',
-    title: '프론트',
-    color: '#06b6d4',
-    skinColor: '#c8956c',
-    hairColor: '#1a1a1a',
-    suitColor: '#283848',
   },
   {
     id: 'dev_ai',

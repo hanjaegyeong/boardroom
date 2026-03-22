@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { startRoundtable, continueDiscussion, finalizeDocuments, stopAll } from '../agents/orchestrator.js';
+import { startRoundtable, continueDiscussion, finalizeDocuments, stopAll, hasDiscussionContent, generateProject } from '../agents/orchestrator.js';
 import { store } from '../store.js';
 import { SSEEvent } from '../agents/types.js';
 
@@ -36,7 +36,7 @@ router.get('/stream', (req: Request, res: Response) => {
 
 // Start new meeting
 router.post('/task', async (req: Request, res: Response) => {
-  const { task } = req.body;
+  const { task, departments } = req.body;
   if (!task || typeof task !== 'string') {
     res.status(400).json({ error: 'Task is required' });
     return;
@@ -45,8 +45,10 @@ router.post('/task', async (req: Request, res: Response) => {
     res.status(409).json({ error: 'A task is already being processed' });
     return;
   }
+  // departments: optional string[] e.g. ['marketing'], ['development'], ['marketing','development']
+  const depts = Array.isArray(departments) && departments.length > 0 ? departments : undefined;
   res.json({ status: 'accepted', task });
-  startRoundtable(task, broadcast).catch(err => {
+  startRoundtable(task, broadcast, depts).catch(err => {
     console.error('Roundtable error:', err);
     broadcast({ type: 'error', message: err.message });
   });
@@ -65,15 +67,32 @@ router.post('/continue', async (_req: Request, res: Response) => {
   });
 });
 
-// Finalize and generate documents
+// Finalize and generate documents (works even after stop if there's content)
 router.post('/finalize', async (_req: Request, res: Response) => {
   if (store.isProcessing) {
     res.status(409).json({ error: 'Already processing' });
     return;
   }
+  if (!hasDiscussionContent()) {
+    res.status(400).json({ error: 'No discussion content to finalize' });
+    return;
+  }
   res.json({ status: 'finalizing' });
   finalizeDocuments(broadcast).catch(err => {
     console.error('Finalize error:', err);
+    broadcast({ type: 'error', message: err.message });
+  });
+});
+
+// Generate project (after user confirms)
+router.post('/generate-project', async (_req: Request, res: Response) => {
+  if (store.isProcessing) {
+    res.status(409).json({ error: 'Already processing' });
+    return;
+  }
+  res.json({ status: 'generating' });
+  generateProject(broadcast).catch(err => {
+    console.error('Project generation error:', err);
     broadcast({ type: 'error', message: err.message });
   });
 });

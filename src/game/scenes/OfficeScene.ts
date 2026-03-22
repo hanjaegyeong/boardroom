@@ -68,8 +68,8 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     // Add department/area labels
-    this.addRoomLabel(7, 1, '마케팅부서');
-    this.addRoomLabel(7, 13, '개발부서');
+    this.addRoomLabel(7.3, 8.3, '마케팅부서');
+    this.addRoomLabel(7.3, 20.3, '개발부서');
     this.addRoomLabel(22, 7, '회의실');
     this.addRoomLabel(28, 19.5, 'Cost Center');
 
@@ -94,20 +94,47 @@ export class OfficeScene extends Phaser.Scene {
     const gameHeight = MAP_HEIGHT * DISPLAY_TILE;
     this.cameras.main.centerOn(gameWidth / 2, gameHeight / 2);
 
-    // Zoom to fit
-    const scaleX = this.scale.width / gameWidth;
-    const scaleY = this.scale.height / gameHeight;
-    const zoom = Math.min(scaleX, scaleY) * 0.95;
-    this.cameras.main.setZoom(Math.max(zoom, 0.5));
+    // Zoom - restore saved or compute default
+    const CAM_VERSION = 'v3';
+    const savedZoom = sessionStorage.getItem(`cam_zoom_${CAM_VERSION}`);
+    const savedScrollX = sessionStorage.getItem(`cam_scrollX_${CAM_VERSION}`);
+    const savedScrollY = sessionStorage.getItem(`cam_scrollY_${CAM_VERSION}`);
 
-    // Ambient: subtle camera drift
-    this.tweens.add({
-      targets: this.cameras.main,
-      scrollX: this.cameras.main.scrollX + 5,
-      duration: 8000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
+    if (savedZoom) {
+      this.cameras.main.setZoom(parseFloat(savedZoom));
+      this.cameras.main.scrollX = parseFloat(savedScrollX || '0');
+      this.cameras.main.scrollY = parseFloat(savedScrollY || '0');
+    } else {
+      const scaleX = this.scale.width / gameWidth;
+      const scaleY = this.scale.height / gameHeight;
+      const zoom = Math.min(scaleX, scaleY) * 1.15;
+      this.cameras.main.setZoom(Math.max(zoom, 0.6));
+    }
+
+    // Save camera state periodically
+    this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callback: () => {
+        const cam = this.cameras.main;
+        sessionStorage.setItem(`cam_zoom_${CAM_VERSION}`, cam.zoom.toString());
+        sessionStorage.setItem(`cam_scrollX_${CAM_VERSION}`, cam.scrollX.toString());
+        sessionStorage.setItem(`cam_scrollY_${CAM_VERSION}`, cam.scrollY.toString());
+      },
+    });
+
+    // Camera drag panning
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown) return;
+      this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
+      this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
+    });
+
+    // Mouse wheel zoom
+    this.input.on('wheel', (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
+      const cam = this.cameras.main;
+      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, 0.5, 3);
+      cam.setZoom(newZoom);
     });
   }
 
@@ -117,7 +144,7 @@ export class OfficeScene extends Phaser.Scene {
       tileY * DISPLAY_TILE,
       text,
       {
-        fontSize: '11px',
+        fontSize: '16px',
         fontFamily: 'Galmuri11, monospace',
         color: '#9a8a76',
       }

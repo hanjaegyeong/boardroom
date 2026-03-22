@@ -35,9 +35,8 @@ export const AGENT_ZONES: Record<string, AgentZone> = {
   mkt_content: { desk: { x: 7, y: 3 },  chair: { x: 7, y: 4 } },
   mkt_growth:  { desk: { x: 11, y: 3 }, chair: { x: 11, y: 4 } },
   // Development department (bottom-left)
-  dev_lead:     { desk: { x: 2, y: 15 },  chair: { x: 2, y: 16 } },
-  dev_backend:  { desk: { x: 5, y: 15 },  chair: { x: 5, y: 16 } },
-  dev_frontend: { desk: { x: 8, y: 15 }, chair: { x: 8, y: 16 } },
+  dev_lead:     { desk: { x: 3, y: 15 },  chair: { x: 3, y: 16 } },
+  dev_backend:  { desk: { x: 7, y: 15 },  chair: { x: 7, y: 16 } },
   dev_ai:       { desk: { x: 11, y: 15 }, chair: { x: 11, y: 16 } },
   // Cost center (bottom-right)
   accountant:   { desk: { x: 28, y: 21 }, chair: { x: 28, y: 22 } },
@@ -86,9 +85,8 @@ export const AGENT_LOCAL_WAYPOINTS: Record<string, Position[]> = {
   mkt_lead:    [{ x: 3, y: 4 }, { x: 5, y: 5 }, { x: 3, y: 6 }, { x: 7, y: 5 }],
   mkt_content: [{ x: 7, y: 4 }, { x: 9, y: 5 }, { x: 7, y: 6 }, { x: 5, y: 5 }],
   mkt_growth:  [{ x: 11, y: 4 }, { x: 13, y: 5 }, { x: 11, y: 6 }, { x: 9, y: 5 }],
-  dev_lead:     [{ x: 2, y: 16 }, { x: 4, y: 17 }, { x: 2, y: 18 }, { x: 5, y: 17 }],
-  dev_backend:  [{ x: 5, y: 16 }, { x: 7, y: 17 }, { x: 5, y: 18 }, { x: 3, y: 17 }],
-  dev_frontend: [{ x: 8, y: 16 }, { x: 10, y: 17 }, { x: 8, y: 18 }, { x: 6, y: 17 }],
+  dev_lead:     [{ x: 3, y: 16 }, { x: 5, y: 17 }, { x: 3, y: 18 }, { x: 7, y: 17 }],
+  dev_backend:  [{ x: 7, y: 16 }, { x: 9, y: 17 }, { x: 7, y: 18 }, { x: 5, y: 17 }],
   dev_ai:       [{ x: 11, y: 16 }, { x: 13, y: 17 }, { x: 11, y: 18 }, { x: 9, y: 17 }],
   accountant:   [{ x: 28, y: 22 }, { x: 27, y: 22 }, { x: 29, y: 22 }],
 };

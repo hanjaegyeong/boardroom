@@ -5,19 +5,19 @@ import { CHARACTERS } from '../assets/characterPixels';
 export type AgentState = 'idle' | 'walking' | 'talking' | 'typing';
 
 // Shared character layout constants — change here to update ALL characters
-export const SPRITE_SCALE = 2.5;
+export const SPRITE_SCALE = 3.2;
 export const SPRITE_SCALE_TALK = SPRITE_SCALE * 1.06; // bounce target
-const NAME_OFFSET_Y = -42;
-const BADGE_OFFSET_Y = -26;
-const SPEAK_OFFSET_X = 18;
-const SPEAK_OFFSET_Y = -34;
-export const BUBBLE_OFFSET_Y = -55;
+const NAME_OFFSET_Y = -54;
+const BADGE_OFFSET_Y = -34;
+const SPEAK_OFFSET_X = 22;
+const SPEAK_OFFSET_Y = -44;
+export const BUBBLE_OFFSET_Y = -68;
 
 // Shared bubble style constants — applies to speech bubbles AND cost bubble
-export const BUBBLE_FONT_SIZE = '13px';
+export const BUBBLE_FONT_SIZE = '14px';
 export const BUBBLE_FONT_FAMILY = 'Galmuri11, monospace';
-export const BUBBLE_PADDING = 10;
-export const BUBBLE_MAX_WIDTH = 220;
+export const BUBBLE_PADDING = 12;
+export const BUBBLE_MAX_WIDTH = 240;
 export const BUBBLE_MAX_CHARS = 60;
 
 export class AgentSprite {
@@ -51,7 +51,7 @@ export class AgentSprite {
 
     // Name label
     this.nameLabel = scene.add.text(px, py + NAME_OFFSET_Y, this.charData.name, {
-      fontSize: '13px',
+      fontSize: '15px',
       fontFamily: '"SF Pro Display", "Helvetica Neue", Arial, sans-serif',
       fontStyle: 'bold',
       color: this.charData.color,
@@ -64,12 +64,12 @@ export class AgentSprite {
 
     // Title badge
     this.titleLabel = scene.add.text(px, py + BADGE_OFFSET_Y, this.charData.title, {
-      fontSize: '10px',
+      fontSize: '12px',
       fontFamily: '"SF Pro Display", "Helvetica Neue", Arial, sans-serif',
       fontStyle: 'bold',
       color: '#ffffff',
       backgroundColor: this.charData.color + 'dd',
-      padding: { x: 4, y: 2 },
+      padding: { x: 5, y: 3 },
       letterSpacing: 2,
     });
     this.titleLabel.setOrigin(0.5, 1);

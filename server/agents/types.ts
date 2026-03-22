@@ -52,5 +52,8 @@ export type SSEEvent =
   | { type: 'agent_speak_end'; agentId: string; fullText: string }
   | { type: 'document_ready'; docId: string; agentId: string; agentTitle: string; title: string }
   | { type: 'task_complete'; summary: string }
+  | { type: 'confirm_download'; reportPath: string }
+  | { type: 'project_generating'; message: string }
+  | { type: 'project_complete'; projectPath: string }
   | { type: 'usage_update'; inputTokens: number; outputTokens: number; totalCalls: number; costUsd: number }
   | { type: 'error'; message: string };

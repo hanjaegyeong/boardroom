@@ -16,6 +16,9 @@ class BoardRoomApp {
   private btnFinalize: HTMLButtonElement;
   private btnStop: HTMLButtonElement;
   private buttonRow: HTMLElement;
+  private downloadConfirm: HTMLElement;
+  private btnDownloadYes: HTMLButtonElement;
+  private btnDownloadNo: HTMLButtonElement;
 
   constructor() {
     this.game = new Phaser.Game(gameConfig);
@@ -30,12 +33,16 @@ class BoardRoomApp {
     this.btnFinalize = document.getElementById('btn-finalize') as HTMLButtonElement;
     this.btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
     this.buttonRow = document.getElementById('button-row')!;
+    this.downloadConfirm = document.getElementById('download-confirm')!;
+    this.btnDownloadYes = document.getElementById('btn-download-yes') as HTMLButtonElement;
+    this.btnDownloadNo = document.getElementById('btn-download-no') as HTMLButtonElement;
 
     this.game.events.on('ready', () => this.waitForScene());
 
     this.setupBridge();
     this.setupTaskSubmission();
     this.setupMeetingControls();
+    this.setupDownloadConfirm();
     this.setupResize();
   }
 
@@ -71,10 +78,19 @@ class BoardRoomApp {
         // Round complete - show continue/finalize buttons
         this.showMeetingControls(true);
         this.setControlsEnabled(true);
-      } else if (phase === 'complete' || phase === 'stopped') {
-        // Meeting done - hide controls, show start button
+      } else if (phase === 'stopped') {
+        // Stopped mid-meeting - show finalize option + start button
+        this.showMeetingControls(true);
+        this.btnContinue.disabled = true;
+        this.btnFinalize.disabled = false;
+        this.btnStop.disabled = true;
+        this.sidebar.setProcessing(false);
+        this.buttonRow.style.display = '';
+      } else if (phase === 'complete') {
+        // Meeting fully done - hide controls, show start button
         this.showMeetingControls(false);
         this.sidebar.setProcessing(false);
+        this.buttonRow.style.display = '';
       } else {
         // In progress - show stop button only
         this.showMeetingControls(true);
@@ -99,6 +115,17 @@ class BoardRoomApp {
       this.sidebar.showSelectedAgents(agents);
     });
 
+    this.gameBridge.setConfirmDownloadHandler((reportPath) => {
+      this.sidebar.addSystemMessage(`보고서 저장 완료: ${reportPath}`);
+      this.downloadConfirm.classList.remove('hidden');
+      this.showMeetingControls(false);
+    });
+
+    this.gameBridge.setProjectCompleteHandler((projectPath) => {
+      this.sidebar.addSystemMessage(`프로젝트 생성 완료: ${projectPath}`);
+      this.downloadConfirm.classList.add('hidden');
+    });
+
     this.gameBridge.setErrorHandler((message) => {
       this.sidebar.addSystemMessage(`Error: ${message}`);
       this.showMeetingControls(false);
@@ -107,7 +134,7 @@ class BoardRoomApp {
   }
 
   private setupTaskSubmission() {
-    this.sidebar.setSubmitHandler(async (task) => {
+    this.sidebar.setSubmitHandler(async (task, departments) => {
       this.sidebar.clearChat();
       this.buttonRow.style.display = 'none';
 
@@ -115,7 +142,7 @@ class BoardRoomApp {
         const res = await fetch('/api/task', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task }),
+          body: JSON.stringify({ task, departments }),
         });
 
         if (!res.ok) {
@@ -161,7 +188,25 @@ class BoardRoomApp {
       } catch (err) {
         this.sidebar.addSystemMessage('중단 요청 실패');
       }
-      this.showMeetingControls(false);
+      // Phase handler will manage UI state via 'stopped' event
+    });
+  }
+
+  private setupDownloadConfirm() {
+    this.btnDownloadYes.addEventListener('click', async () => {
+      this.btnDownloadYes.disabled = true;
+      this.btnDownloadNo.disabled = true;
+      this.sidebar.addSystemMessage('프로젝트 코드 생성 중...');
+      try {
+        await fetch('/api/generate-project', { method: 'POST' });
+      } catch (err) {
+        this.sidebar.addSystemMessage('프로젝트 생성 요청 실패');
+      }
+    });
+
+    this.btnDownloadNo.addEventListener('click', () => {
+      this.downloadConfirm.classList.add('hidden');
+      this.sidebar.addSystemMessage('보고서만 저장되었습니다.');
       this.sidebar.setProcessing(false);
       this.buttonRow.style.display = '';
     });

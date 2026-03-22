@@ -19,6 +19,16 @@
       </div>
       <div id="task-input-area">
         <textarea id="task-input" placeholder="업무를 입력하세요... (예: 새로운 B2B SaaS 제품 런칭 전략을 수립해주세요)" rows="3"></textarea>
+        <div id="dept-selector">
+          <label class="dept-option">
+            <input type="checkbox" name="dept" value="marketing" checked />
+            <span class="dept-label dept-mkt">마케팅</span>
+          </label>
+          <label class="dept-option">
+            <input type="checkbox" name="dept" value="development" checked />
+            <span class="dept-label dept-dev">개발</span>
+          </label>
+        </div>
         <div id="button-row">
           <button id="task-submit">회의 시작</button>
         </div>
@@ -26,6 +36,13 @@
           <button id="btn-continue" class="btn-control btn-continue">계속 토론</button>
           <button id="btn-finalize" class="btn-control btn-finalize">산출물 생성</button>
           <button id="btn-stop" class="btn-control btn-stop">중단</button>
+        </div>
+        <div id="download-confirm" class="hidden">
+          <div class="confirm-message">프로젝트 코드를 생성하여 Desktop에 다운로드하시겠습니까?</div>
+          <div class="confirm-buttons">
+            <button id="btn-download-yes" class="btn-control btn-finalize">Yes - 프로젝트 생성</button>
+            <button id="btn-download-no" class="btn-control btn-stop">No - 보고서만</button>
+          </div>
         </div>
       </div>
       <div id="topic-banner" class="hidden"></div>

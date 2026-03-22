@@ -9,8 +9,7 @@ const AGENT_INFO: AgentColors = {
   mkt_content: { name: 'Seoha',   title: '콘텐츠 전략가', color: '#f59e0b', department: '마케팅' },
   mkt_growth:  { name: 'Minjun',  title: '그로스 해커',   color: '#8b5cf6', department: '마케팅' },
   dev_lead:    { name: 'Hyunwoo', title: '개발팀 팀장',    color: '#3b82f6', department: '개발' },
-  dev_backend: { name: 'Eunji',   title: '백엔드 개발자', color: '#10b981', department: '개발' },
-  dev_frontend:{ name: 'Taehyun', title: '프론트 개발자', color: '#06b6d4', department: '개발' },
+  dev_backend: { name: 'Eunji',   title: '풀스택 개발자', color: '#10b981', department: '개발' },
   dev_ai:      { name: 'Siwon',   title: 'AI 담당',      color: '#f43f5e', department: '개발' },
 };
 
@@ -25,9 +24,10 @@ export class Sidebar {
   private usageTokens: HTMLElement;
   private usageCalls: HTMLElement;
   private usageCost: HTMLElement;
+  private deptSelector: HTMLElement;
   private currentMessageEl: HTMLElement | null = null;
   private currentMessageText = '';
-  private onSubmitTask: ((task: string) => void) | null = null;
+  private onSubmitTask: ((task: string, departments: string[]) => void) | null = null;
 
   constructor() {
     this.chatMessages = document.getElementById('chat-messages')!;
@@ -40,6 +40,7 @@ export class Sidebar {
     this.usageTokens = document.getElementById('usage-tokens')!;
     this.usageCalls = document.getElementById('usage-calls')!;
     this.usageCost = document.getElementById('usage-cost')!;
+    this.deptSelector = document.getElementById('dept-selector')!;
 
     this.taskSubmit.addEventListener('click', () => this.submitTask());
     this.taskInput.addEventListener('keydown', (e) => {
@@ -50,21 +51,32 @@ export class Sidebar {
     });
   }
 
-  setSubmitHandler(handler: (task: string) => void) {
+  setSubmitHandler(handler: (task: string, departments: string[]) => void) {
     this.onSubmitTask = handler;
+  }
+
+  getSelectedDepartments(): string[] {
+    const checkboxes = this.deptSelector.querySelectorAll<HTMLInputElement>('input[name="dept"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
   }
 
   private submitTask() {
     const task = this.taskInput.value.trim();
     if (!task) return;
 
-    this.taskInput.value = '';
+    const departments = this.getSelectedDepartments();
+    if (departments.length === 0) {
+      this.addSystemMessage('부서를 하나 이상 선택해주세요.');
+      return;
+    }
+
     this.setProcessing(true);
+    this.deptSelector.classList.add('hidden');
     this.topicBanner.textContent = task;
     this.topicBanner.classList.remove('hidden');
 
     if (this.onSubmitTask) {
-      this.onSubmitTask(task);
+      this.onSubmitTask(task, departments);
     }
   }
 
@@ -72,6 +84,9 @@ export class Sidebar {
     this.taskInput.disabled = processing;
     this.taskSubmit.disabled = processing;
     this.taskSubmit.textContent = processing ? '회의 진행 중...' : '회의 시작';
+    if (!processing) {
+      this.deptSelector.classList.remove('hidden');
+    }
   }
 
   setPhase(phase: string, label: string) {
@@ -223,7 +238,14 @@ export class Sidebar {
     this.usageBar.classList.add('hidden');
   }
 
+  private isNearBottom(): boolean {
+    const chatLog = document.getElementById('chat-log')!;
+    const threshold = 80;
+    return chatLog.scrollHeight - chatLog.scrollTop - chatLog.clientHeight < threshold;
+  }
+
   private scrollToBottom() {
+    if (!this.isNearBottom()) return;
     const chatLog = document.getElementById('chat-log')!;
     chatLog.scrollTop = chatLog.scrollHeight;
   }

@@ -13,6 +13,8 @@ export class GameBridge {
   private onSpeakEnd: ((agentId: string, fullText: string) => void) | null = null;
   private onUsageUpdate: ((inputTokens: number, outputTokens: number, totalCalls: number, costUsd: number) => void) | null = null;
   private onAgentsSelected: ((agents: string[]) => void) | null = null;
+  private onConfirmDownload: ((reportPath: string) => void) | null = null;
+  private onProjectComplete: ((projectPath: string) => void) | null = null;
 
   constructor(eventStream: EventStream) {
     this.eventStream = eventStream;
@@ -32,6 +34,8 @@ export class GameBridge {
   setSpeakEndHandler(handler: typeof this.onSpeakEnd) { this.onSpeakEnd = handler; }
   setUsageHandler(handler: typeof this.onUsageUpdate) { this.onUsageUpdate = handler; }
   setAgentsSelectedHandler(handler: typeof this.onAgentsSelected) { this.onAgentsSelected = handler; }
+  setConfirmDownloadHandler(handler: typeof this.onConfirmDownload) { this.onConfirmDownload = handler; }
+  setProjectCompleteHandler(handler: typeof this.onProjectComplete) { this.onProjectComplete = handler; }
 
   private setupListeners() {
     this.eventStream.on('agents_selected', (data: any) => {
@@ -125,6 +129,18 @@ export class GameBridge {
       }
       if (this.scene) {
         this.scene.showCostBubble(data.inputTokens, data.outputTokens, data.totalCalls, data.costUsd);
+      }
+    });
+
+    this.eventStream.on('confirm_download', (data: any) => {
+      if (this.onConfirmDownload) {
+        this.onConfirmDownload(data.reportPath);
+      }
+    });
+
+    this.eventStream.on('project_complete', (data: any) => {
+      if (this.onProjectComplete) {
+        this.onProjectComplete(data.projectPath);
       }
     });
 
